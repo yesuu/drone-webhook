@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -141,33 +142,34 @@ func (p Plugin) Exec() error {
 
 		defer resp.Body.Close()
 
-		if p.Config.Debug || resp.StatusCode >= http.StatusBadRequest {
-			body, err := ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("Error: Failed to read the HTTP response body. %s\n", err)
+		}
 
-			if err != nil {
-				fmt.Printf("Error: Failed to read the HTTP response body. %s\n", err)
-			}
+		if p.Config.Debug {
+			fmt.Printf(
+				debugFormat,
+				i+1,
+				req.URL,
+				req.Method,
+				req.Header,
+				string(b),
+				resp.Status,
+				string(body),
+			)
+		} else {
+			fmt.Printf(
+				respFormat,
+				i+1,
+				req.URL,
+				resp.Status,
+				string(body),
+			)
+		}
 
-			if p.Config.Debug {
-				fmt.Printf(
-					debugFormat,
-					i+1,
-					req.URL,
-					req.Method,
-					req.Header,
-					string(b),
-					resp.Status,
-					string(body),
-				)
-			} else {
-				fmt.Printf(
-					respFormat,
-					i+1,
-					req.URL,
-					resp.Status,
-					string(body),
-				)
-			}
+		if resp.StatusCode >= http.StatusBadRequest {
+			return errors.New(resp.Status)
 		}
 	}
 
